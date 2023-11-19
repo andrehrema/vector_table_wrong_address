@@ -1,0 +1,200 @@
+#!/bin/bash -e
+export PATH="$PATH:/opt/arm/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin"
+
+ARM_INCLUDES="/opt/arm-gnu-toolchain-12.2.rel1-x86_64-arm-none-eabi/arm-none-eabi/include"
+
+SCRIPT_PATH=$(dirname $(realpath -s $0))
+STM_FRAMEWORK_PATH="/opt/stm32/STM32CubeF4"
+DEVICE="stm32f446xx"
+DEVICE_FLAG="STM32F446xx"
+HAL_ENABLED=$1
+shift
+LL_ENABLED=$1
+
+#Get all hal modules used by the project
+DEFINITIONS_HAL=$(grep -E '#define HAL_.+_MODULE_ENABLED' "$SCRIPT_PATH"/../include/stm32f4xx_hal_conf.h | grep -v -E '//|/\*|\*/' | cut -d' ' -f2 | tr '\n' ' ')
+DEFINITIONS_LL=$(grep -E '#include \"stm32.*_ll_.*.h\"' "$SCRIPT_PATH"/../src/app.c | cut -d\" -f2 | cut -d. -f1)
+
+HEADER_PLACE="$SCRIPT_PATH/../include"
+SRC_PLACE="$SCRIPT_PATH/../src"
+
+create_symbolic_links () {
+	ORIGINAL_FILE="$1"
+	shift
+	LINK_FILE="$1"/link_to_$(basename "$ORIGINAL_FILE")
+	[ ! -h "$LINK_FILE" ] && ln -sf "$ORIGINAL_FILE" "$LINK_FILE" 2>/dev/null || true
+}
+
+if [ "$HAL_ENABLED" == 1 ]; then
+	# Get STM32 HAL sources
+	for definition in $DEFINITIONS_HAL; do
+		STM_SRC=""
+		STM_HEADER=""
+		case $definition in
+			HAL_RCC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_rcc.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_rcc.h)"
+				;;
+
+			HAL_GPIO_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_gpio.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_gpio.h)"
+				;;
+
+			HAL_EXTI_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_exti.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_exti.h)"
+				;;
+
+			HAL_DMA_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_dma.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_dma.h)"
+				;;
+
+			HAL_CORTEX_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_cortex.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_cortex.h)"
+				;;
+
+			HAL_ADC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_adc.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_adc.h)"
+				STM_HEADER="$STM_HEADER $(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_dma.h)"
+				;;
+
+			HAL_CAN_MODULE_ENABLED)
+				STM_SRC="$/opt/stm32/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_can.c "
+				STM_HEADER="$/opt/stm32/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_can.h "
+				;;
+
+			HAL_CAN_LEGACY_MODULE_ENABLED)
+				STM_SRC="$/opt/stm32/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Src/Legacy/stm32f4xx_hal_can.c "
+				STM_HEADER="$/opt/stm32/STM32CubeF4/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32f4xx_hal_can_legacy.h "
+				;;
+
+			HAL_CEC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_cec.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_cec.h)"
+				;;
+
+			HAL_COMP_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_comp.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_comp.h)"
+				;;
+
+			HAL_CRC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_crc.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_crc.h)"
+				;;
+
+			HAL_DAC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_dac.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_dac.h)"
+				;;
+
+			HAL_FLASH_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_flash.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_flash.h)"
+				;;
+
+			HAL_I2C_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_i2c.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_i2c.h)"
+				;;
+
+			HAL_I2S_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_i2s.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_i2s.h)"
+				;;
+
+			HAL_IRDA_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_irda.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_irda.h)"
+				;;
+
+			HAL_IWDG_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_iwdg.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_iwdg.h)"
+				;;
+
+			HAL_PCD_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_pcd.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_pcd.h)"
+				;;
+
+			HAL_PWR_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_pwr.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_pwr.h)"
+				;;
+
+			HAL_RTC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_rtc.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_rtc.h)"
+				;;
+
+			HAL_SMARTCARD_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_smartcard.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_smartcard.h)"
+				;;
+
+			HAL_SMBUS_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_smbus.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_smbus.h)"
+				;;
+
+			HAL_SPI_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_spi.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_spi.h)"
+				;;
+
+			HAL_TIM_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_tim.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_tim.h)"
+				;;
+
+			HAL_TSC_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_tsc.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_tsc.h)"
+				;;
+
+			HAL_UART_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_uart.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_uart.h)"
+				;;
+
+			HAL_USART_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_usart.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_usart.h)"
+				;;
+
+			HAL_WWDG_MODULE_ENABLED)
+				STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_wwdg.c)"
+				STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal_wwdg.h)"
+				;;
+		esac
+		create_symbolic_links "$STM_SRC" "$SRC_PLACE"
+		create_symbolic_links "$STM_HEADER" "$HEADER_PLACE"
+	done
+
+	STM_SRC="$(find $STM_FRAMEWORK_PATH -iname stm32f4xx_hal.c)"
+	create_symbolic_links "$STM_SRC" "$SRC_PLACE"
+
+	STARTUP_FILE=$(find "$STM_FRAMEWORK_PATH" -name startup_"$DEVICE".s | grep gcc)
+	create_symbolic_links "$STARTUP_FILE" "$SRC_PLACE"
+fi
+
+if [ "$LL_ENABLED" == 1 ]; then
+	# Get STM32 LL sources
+	for definition in $DEFINITIONS_LL; do
+		STM_SRC="$(find $STM_FRAMEWORK_PATH -iname "$definition".c)"
+		STM_HEADER="$(find $STM_FRAMEWORK_PATH -iname "$definition".h)"
+		create_symbolic_links "$STM_SRC" "$SRC_PLACE"
+		create_symbolic_links "$STM_HEADER" "$HEADER_PLACE"
+	done
+fi
+
+make -e DEVICE="$DEVICE"\
+	 INCLUDE_PATHS="-I${STM_FRAMEWORK_PATH}/Drivers/STM32F4xx_HAL_Driver/Inc -I./include \
+	 -I${STM_FRAMEWORK_PATH}/Drivers/CMSIS/Device/ST/STM32F4xx/Include \
+	 -I${STM_FRAMEWORK_PATH}/Drivers/CMSIS/Include"\
+	 MICROCONTROLLER_FLAG="-D${DEVICE_FLAG}" LIB_PATH="-L/opt/arm/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/arm-none-eabi/lib/thumb/v7e-m+fp/hard"
