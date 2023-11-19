@@ -40,7 +40,7 @@ $(BUILD_DIR)/$(TARGET).elf: $(OBJS)
 	$(OC) -O ihex $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).hex
 	$(OC) -O binary $(BUILD_DIR)/$(TARGET).elf $(BUILD_DIR)/$(TARGET).bin
 
-build/startup_$(DEVICE).o: src/link_to_startup_$(DEVICE).s
+build/startup_$(DEVICE).o: src/startup_$(DEVICE).s
 	$(CC) $(CFLAGS)  -T$(LD_SCRIPT) $< -o $@
 
 build/%.o: src/%.c
